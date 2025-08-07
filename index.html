@@ -1,3 +1,95 @@
+<!-- Input do wyszukiwania -->
+<input id="searchInput" type="text" placeholder="Wpisz miejscowość" style="position:absolute;top:10px;left:10px;z-index:9999;width:250px;padding:8px;border-radius:4px;border:1px solid #ccc;box-shadow:0 2px 6px rgba(0,0,0,0.3);">
+
+<!-- Mapa -->
+<div id="map"></div>
+
+<!-- Skrypty -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDyfQemGqfFMURA4AkQF1LtRCVDK2OGd_Y"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<script>
+  let map;
+  const geocoder = new google.maps.Geocoder();
+
+  function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+      center: { lat: 52.237, lng: 21.017 },
+      zoom: 6,
+    });
+
+    // Wyszukiwarka miejscowości
+    const input = document.getElementById("searchInput");
+    const autocomplete = new google.maps.places.Autocomplete(input, {
+      types: ["(cities)"],
+      componentRestrictions: { country: "pl" },
+    });
+
+    autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      if (!place.geometry || !place.geometry.location) return;
+      map.setCenter(place.geometry.location);
+      map.setZoom(11); // Przybliżenie po wyborze miasta
+    });
+
+    // Wczytywanie sklepów z CSV
+    const csvUrl = "https://raw.githubusercontent.com/mateuszslota1/mapa-sklepow/refs/heads/main/Lokalizacja_sklepow.csv";
+    Papa.parse(csvUrl, {
+      download: true,
+      header: true,
+      complete: function (results) {
+        const data = results.data;
+        data.forEach((row) => {
+          const name = row["Nazwa"];
+          const address = row["Adres"];
+          const city = row["Miasto"];
+          const lat = parseFloat(row["Lat"]);
+          const lng = parseFloat(row["Lng"]);
+
+          if (!isNaN(lat) && !isNaN(lng)) {
+            addMarker({ lat, lng }, name, `${address}, ${city}`);
+          } else {
+            const fullAddress = `${address}, ${city}`;
+            geocoder.geocode({ address: fullAddress }, (results, status) => {
+              if (status === "OK" && results[0]) {
+                const location = results[0].geometry.location;
+                addMarker(location, name, fullAddress);
+              } else {
+                console.warn(`Nie znaleziono adresu: ${fullAddress}`);
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+
+  function addMarker(location, title, address) {
+    const marker = new google.maps.Marker({
+      position: location,
+      map: map,
+      title: title
+    });
+
+    const infowindow = new google.maps.InfoWindow({
+      content: `<strong>${title}</strong><br>${address}`
+    });
+
+    marker.addListener("click", () => {
+      infowindow.open(map, marker);
+    });
+  }
+
+  // Inicjalizacja mapy po załadowaniu strony
+  window.initMap = initMap;
+</script>
+
+
+
+
+
+
+<!--
 
 <!DOCTYPE html>
 <html lang="pl">
@@ -76,3 +168,6 @@
   </script>
 </body>
 </html>
+>
+
+-->
