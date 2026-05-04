@@ -33,23 +33,19 @@
     .locator-panel {
       position: absolute;
       top: 16px;
-      left: 16px;
+      right: 16px;
       z-index: 10;
-      width: 380px;
+      width: 360px;
       max-width: calc(100% - 32px);
-      max-height: calc(100vh - 32px);
-      display: flex;
-      flex-direction: column;
       overflow: hidden;
       border: 1px solid var(--border);
       border-radius: 8px;
       background: var(--panel);
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
     }
 
     .locator-search {
-      padding: 14px;
-      border-bottom: 1px solid var(--border);
+      padding: 12px;
       background: var(--panel);
     }
 
@@ -83,7 +79,7 @@
     }
 
     #resultsCount {
-      margin-top: 9px;
+      margin-top: 8px;
       color: var(--muted);
       font-size: 13px;
       font-weight: 700;
@@ -96,8 +92,15 @@
     }
 
     #storeList {
+      display: none;
+      max-height: 320px;
       overflow: auto;
+      border-top: 1px solid var(--border);
       background: var(--soft);
+    }
+
+    #storeList.is-visible {
+      display: block;
     }
 
     .store-item {
@@ -147,7 +150,6 @@
       margin-bottom: 8px;
       font-size: 16px;
       font-weight: 700;
-      color: var(--text);
     }
 
     .info-row {
@@ -184,10 +186,12 @@
     @media (max-width: 700px) {
       .locator-panel {
         top: 10px;
-        left: 10px;
+        right: 10px;
         width: calc(100% - 20px);
-        max-width: none;
-        max-height: 48vh;
+      }
+
+      #storeList {
+        max-height: 260px;
       }
     }
   </style>
@@ -200,7 +204,7 @@
   <div class="locator-panel">
     <div class="locator-search">
       <div class="search-row">
-        <input id="searchInput" type="text" placeholder="Wpisz miejscowość, sklep lub ulicę..." />
+        <input id="searchInput" type="text" placeholder="Wpisz miejscowość..." />
         <button id="clearSearch" type="button" aria-label="Wyczyść">×</button>
       </div>
       <div id="resultsCount">Ładowanie sklepów...</div>
@@ -257,10 +261,9 @@
       skipEmptyLines: true,
 
       complete: function (results) {
-        const data = results.data;
         let pendingGeocodes = 0;
 
-        data.forEach((row) => {
+        results.data.forEach((row) => {
           const name = row["Nazwa"]?.trim();
           const address = row["Adres"]?.trim();
           const city = row["Miasto"]?.trim();
@@ -282,10 +285,7 @@
               pendingGeocodes--;
 
               if (status === "OK" && results[0]) {
-                const location = results[0].geometry.location;
-                createStore(location, name, address, city, fullAddress, phone);
-              } else {
-                console.warn(`Nie znaleziono adresu: ${fullAddress}`);
+                createStore(results[0].geometry.location, name, address, city, fullAddress, phone);
               }
 
               if (pendingGeocodes === 0) finishMap();
@@ -296,8 +296,7 @@
         if (pendingGeocodes === 0) finishMap();
       },
 
-      error: function (error) {
-        console.error("Błąd wczytywania CSV:", error);
+      error: function () {
         resultsCount.textContent = "Nie udało się wczytać sklepów.";
       }
     });
@@ -311,18 +310,6 @@
       filterStores("");
       searchInput.focus();
     });
-
-    function parseCoordinate(value) {
-      if (!value) return NaN;
-
-      return parseFloat(
-        String(value)
-          .replace(/"/g, "")
-          .replace(/;/g, "")
-          .replace(",", ".")
-          .trim()
-      );
-    }
 
     function createStore(location, name, address, city, fullAddress, phone) {
       const marker = new google.maps.Marker({
@@ -346,7 +333,8 @@
         phone,
         marker,
         searchText: normalizeText(`${name} ${address} ${city} ${phone || ""}`),
-        cityText: normalizeText(city)
+        cityText: normalizeText(city),
+        distanceFromSearch: null
       };
 
       marker.addListener("click", () => openStore(store));
@@ -365,8 +353,8 @@
         renderer: createClusterRenderer()
       });
 
-      renderStores(stores);
-      updateResultsCount(stores.length);
+      resultsCount.textContent = `Dostępnych sklepów: ${stores.length}`;
+      radiusNote.textContent = "Wpisz miejscowość, aby zobaczyć listę najbliższych sklepów.";
       fitMapToStores(stores);
     }
 
@@ -375,9 +363,15 @@
 
       const normalizedQuery = normalizeText(query);
 
+      stores.forEach((store) => {
+        store.distanceFromSearch = null;
+      });
+
       if (!normalizedQuery) {
-        radiusNote.textContent = "";
-        updateVisibleStores(stores, null);
+        storeList.classList.remove("is-visible");
+        storeList.innerHTML = "";
+        radiusNote.textContent = "Wpisz miejscowość, aby zobaczyć listę najbliższych sklepów.";
+        updateVisibleStores(stores, null, false);
         return;
       }
 
@@ -389,40 +383,53 @@
         const nearbyStores = getStoresWithinRadius(center, NEARBY_RADIUS_KM);
 
         nearbyStores.forEach((store) => {
-          store.distanceFromSearch = getDistanceKm(center, store.marker.getPosition());
+          if (store.cityText !== normalizedQuery) {
+            store.distanceFromSearch = getDistanceKm(center, store.marker.getPosition());
+          }
         });
 
-        nearbyStores.sort((a, b) => a.distanceFromSearch - b.distanceFromSearch);
+        nearbyStores.sort((a, b) => {
+          const distanceA = a.distanceFromSearch ?? 0;
+          const distanceB = b.distanceFromSearch ?? 0;
+          return distanceA - distanceB;
+        });
 
         radiusNote.textContent = `Pokazuję sklepy w promieniu ${NEARBY_RADIUS_KM} km od miejscowości: ${query}`;
-        updateVisibleStores(nearbyStores, center);
+        updateVisibleStores(nearbyStores, center, true);
         return;
       }
 
       if (partialCityStores.length > 0) {
         radiusNote.textContent = "Doprecyzuj miejscowość, aby pokazać także sklepy z okolicy.";
-        updateVisibleStores(partialCityStores, null);
+        updateVisibleStores(partialCityStores, null, true);
         return;
       }
 
       const textMatches = stores.filter((store) => store.searchText.includes(normalizedQuery));
       radiusNote.textContent = "";
-      updateVisibleStores(textMatches, null);
+      updateVisibleStores(textMatches, null, true);
     }
 
-    function updateVisibleStores(visibleStores, center) {
+    function updateVisibleStores(visibleStores, center, showList) {
       infoWindow.close();
 
       clusterer.clearMarkers();
       clusterer.addMarkers(visibleStores.map((store) => store.marker));
 
-      renderStores(visibleStores);
+      renderStores(visibleStores, showList);
       updateResultsCount(visibleStores.length);
       fitMapToStores(visibleStores, center);
     }
 
-    function renderStores(visibleStores) {
+    function renderStores(visibleStores, showList) {
       storeList.innerHTML = "";
+
+      if (!showList) {
+        storeList.classList.remove("is-visible");
+        return;
+      }
+
+      storeList.classList.add("is-visible");
 
       if (visibleStores.length === 0) {
         storeList.innerHTML = `
@@ -479,14 +486,11 @@
       return `
         <div class="info-window">
           <div class="info-title">${escapeHtml(store.name)}</div>
-
           <div class="info-row">
             <span class="info-label">Adres:</span>
             ${escapeHtml(store.fullAddress)}
           </div>
-
           ${phoneHtml}
-
           <a class="directions-button" href="${directionsUrl}" target="_blank" rel="noopener">
             Wyznacz trasę
           </a>
@@ -503,9 +507,7 @@
         bounds.extend(store.marker.getPosition());
       });
 
-      if (center) {
-        bounds.extend(center);
-      }
+      if (center) bounds.extend(center);
 
       map.fitBounds(bounds);
 
@@ -518,14 +520,6 @@
           map.setZoom(12);
         }
       });
-    }
-
-    function updateResultsCount(count) {
-      if (count === 1) {
-        resultsCount.textContent = "Znaleziono 1 sklep";
-      } else {
-        resultsCount.textContent = `Znaleziono ${count} sklepów`;
-      }
     }
 
     function getStoresCenter(centerStores) {
@@ -562,13 +556,15 @@
         Math.cos(lat1) * Math.cos(lat2) *
         Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
 
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-      return earthRadiusKm * c;
+      return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    function toRadians(value) {
-      return value * Math.PI / 180;
+    function updateResultsCount(count) {
+      if (count === 1) {
+        resultsCount.textContent = "Znaleziono 1 sklep";
+      } else {
+        resultsCount.textContent = `Znaleziono ${count} sklepów`;
+      }
     }
 
     function createClusterRenderer() {
@@ -596,6 +592,18 @@
       };
     }
 
+    function parseCoordinate(value) {
+      if (!value) return NaN;
+
+      return parseFloat(
+        String(value)
+          .replace(/"/g, "")
+          .replace(/;/g, "")
+          .replace(",", ".")
+          .trim()
+      );
+    }
+
     function normalizeText(value) {
       return String(value || "")
         .toLowerCase()
@@ -615,6 +623,10 @@
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+    }
+
+    function toRadians(value) {
+      return value * Math.PI / 180;
     }
   </script>
 </body>
