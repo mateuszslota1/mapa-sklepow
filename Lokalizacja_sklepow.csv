@@ -1,2 +1,47 @@
-﻿Nazwa;Adres;Miasto;Lat;Lng
-Sklep Firmowy Spar Jodłowa;Jodłowa 27a;Jodłowa;49.87682542457871;21.30447743008629
+Nazwa;Adres;Miasto;"Telefon kontaktowy (jeśli mamy; jeśli nie mamy to puste)";szerokość geograficzna (latitude);długość geograficzna (longitude)
+Sklep Firmowy Spar Jodłowa;Jodłowa 27a;Jodłowa;+14 672 61 08;49.87682542457871;21.30447743008629
+Delikatesy Centrum Pro One;Powstańców Śląskich 40;Rzeszów;;50.02715325888504;22.0465030218066
+Delikatesy Centrum Pro One;Lwowska 115;Rzeszów;+17 862 66 32;50.04325136321377;22.044099762793653
+Delikatesy Centrum Pro One;Zaczernie 1D/1;Zaczernie;694 031 907;50.1003230182592;21.978525124011743
+Delikatesy Centrum Pro One;Łukawiec 206;Łąka;;50.11133289108508;22.09697146107854
+Delikatesy Centrum Pro One;Aleja Gen. Sikorskiego 433;Rzeszów;+17 230 44 66;49.98547908786332;22.022932133490162
+Delikatesy Centrum Pro One;Zarzecze 23A;Zarzecze;694 031 907;49.95831914262237;21.913755509759024
+Delikatesy Centrum Pro One;Strażów 341A;Strażów;601 943 768;50.07149465645419;22.118032525859736
+Delikatesy Centrum Pro One;Chmielnik 277;Chmielnik;+17 229 26 04;49.98592058634757;22.112196039685433
+Delikatesy Centrum Pro One;Trzebownisko 817;Trzebownisko;729 884 434;50.08295176104506;22.03254516954196
+Delikatesy Centrum Pro One;Malawa/Rzeszów  36-007 Rzeszów;Rzeszów;603 885 229;50.04088175332872;22.09596637080444
+Delikatesy Centrum Pro One;Dębicka 79;Rzeszów;603 569 873;50.060211214265614;21.94885028345121
+Delikatesy Centrum Pro One;Krajobrazowa 13;Rzeszów;694 031 898;50.043376314800724;21.968757080749835
+Delikatesy Centrum Pro One;Jana Pawła II 175;Rzeszów;;50.041193580601785;21.966329422542685
+Delikatesy Centrum Pro One;Krasne 134;Rzeszów;601 757 613;50.04898860416492;22.093053180955863
+Delikatesy Centrum Pro One;Lubelska 42A;Rzeszów;690 092 007;50.06831480033441;22.011969396837088
+Sklep Okręgowej Spółdzielni Mleczarskiej;Humniska 927;Humniska;;49.67472064299903;22.030102767928057
+Norma;Lipińskiego 109;Sanok;;49.67405964054678;22.031099473140703
+Euro Sklep Bastek;DW886;Humniska;;49.672436867644734;22.05791397362112
+Delikatesy Premium Woda Java;Humniska 439;Humniska;+13 434 60 35;49.674507196619146;22.05384261564551
+Sklep Okręgowej Spółdzielni Mleczarskiej;36-221 Blizne;Blizne;+13 430 58 14;49.74645689418992;21.9858209678599
+Zielony Koszyk Brzozów;Kościuszki 19;Brzozów;697 075 522;49.69891797962833;22.019273106956266
+Groszek;Marszałka Józefa Piłsudskiego 17;Zagórz;;49.513019854218015;22.266334264052592
+Hit pol;Marszałka Józefa Piłsudskiego 30;Zagórz;+13 462 35 11;"49.512097779416244;";22.26433427844993
+Sklep Groszek;Górki 208;Górki;;49.64408917331988;22.041283248811617
+PSS 1;Żeromskiego 6;Dębica;;50.05212145125741;21.408754344972817
+Sklep spożywczy PSS Społem nr 1;Piekarska 1;Dębica;;50.052014285262665;21.41033232280746
+Sklep spożywczy PSS Społem;Kolejowa 40;Dębica;+14 683 20 74;50.053027481466366;21.407252231457143
+Kaprys PSS;Krakowska 1;Dębica;;"50.050182683990805;";21.4102261127609
+SEZAM PSS Społem;Krakowska 53;Dębica;+14 682 84 14;50.046052639955036;21.405880227288616
+Lewiatan;Krakowska 34;Dębica;;"50.04875334774559;";21.404979005158758
+Lewiatan;Dobrków 2B;Dobrków;;49.979365945068544;21.338972200705932
+Supersam GS Samopomoc Chłopska;Legionów 19;Pilzno;+14 672 10 78;49.98025989600785;21.288542221950372
+Delikatesy Centrum;3 Maja 86;Pilzno;+14 672 18 07;49.97669750954629;21.27673101065688
+Samopomoc Chłopska. Gminna Spółdzielnia;Rynek 15;Pilzno;+14 672 11 17;49.97839338482323;21.291990155240946
+Dom Handlowy;Rynek 17;Pilzno;;49.978059923761755;21.291776221445136
+Delikatesy Centrum;Strzegocice 116C;Strzegocice;+14 672 31 16;49.97373875519128;21.304409218016897
+Kozak Market;Bielowy 3A;Bielowy;;49.94143133429859;21.33081034476288
+MPM;Klęczany 139;Klęczany;;49.70220867730563;21.21266728181014
+Delikatesy Centrum;Biecka 31;Gorlice;+18 351 14 28;49.68809089938939;21.193670317446124
+Delikatesy Centrum;Stróżowska 67;Gorlice;+18 353 00 44;49.66546340258602;21.144720072163075
+Chorten;Mikołaja Kopernika 10;Gorlice;;49.65763406493075;21.151252581231404
+Handlowiec Chorten;Tadeusza Kościuszki 42A;Ropica Polska;+18 353 11 05;49.65779925383963;21.152885708498488
+Arka;Ropica Polska 59;Ropica ;+18 352 72 55;49.635253584599965;21.135125706639535
+Delikatesy Hitpol;Szymbark 501;Szymbark;;49.62462895416508;21.102801892890533
+Lewiatan;Ropa 1099;Ropa;;49.60092351823216;21.0440023172691
