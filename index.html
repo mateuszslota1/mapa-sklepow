@@ -6,12 +6,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
+    :root {
+      --accent: #c9202f;
+      --accent-dark: #9f1623;
+      --text: #1f1f1f;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --panel: #ffffff;
+      --soft: #f7f7f7;
+    }
+
     html,
     body {
       margin: 0;
       padding: 0;
       height: 100%;
       font-family: Arial, sans-serif;
+      color: var(--text);
     }
 
     #map {
@@ -19,17 +30,27 @@
       height: 100vh;
     }
 
-    .search-panel {
+    .locator-panel {
       position: absolute;
       top: 16px;
       left: 16px;
       z-index: 10;
-      width: 320px;
+      width: 380px;
       max-width: calc(100% - 32px);
-      padding: 12px;
+      max-height: calc(100vh - 32px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid var(--border);
       border-radius: 8px;
-      background: #ffffff;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+      background: var(--panel);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+    }
+
+    .locator-search {
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
     }
 
     .search-row {
@@ -39,43 +60,85 @@
 
     #searchInput {
       width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #cbd5e1;
+      padding: 11px 12px;
+      border: 1px solid #d1d5db;
       border-radius: 6px;
       font-size: 14px;
       outline: none;
     }
 
     #searchInput:focus {
-      border-color: #0f766e;
-      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(201, 32, 47, 0.14);
     }
 
     #clearSearch {
-      min-width: 40px;
+      min-width: 42px;
       border: 0;
       border-radius: 6px;
-      background: #e2e8f0;
-      color: #334155;
+      background: var(--text);
+      color: #ffffff;
       font-size: 22px;
       cursor: pointer;
     }
 
-    #clearSearch:hover {
-      background: #cbd5e1;
-    }
-
     #resultsCount {
-      margin-top: 8px;
-      color: #475569;
+      margin-top: 9px;
+      color: var(--muted);
       font-size: 13px;
       font-weight: 700;
     }
 
+    .radius-note {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    #storeList {
+      overflow: auto;
+      background: var(--soft);
+    }
+
+    .store-item {
+      width: 100%;
+      display: block;
+      padding: 12px 14px;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      background: #ffffff;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .store-item:hover {
+      background: #fafafa;
+    }
+
+    .store-name {
+      margin-bottom: 4px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .store-address {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .store-distance {
+      margin-top: 5px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
     .info-window {
-      max-width: 260px;
+      max-width: 270px;
       padding: 4px;
-      color: #1f2933;
+      color: var(--text);
       font-size: 14px;
       line-height: 1.4;
     }
@@ -84,7 +147,7 @@
       margin-bottom: 8px;
       font-size: 16px;
       font-weight: 700;
-      color: #173f35;
+      color: var(--text);
     }
 
     .info-row {
@@ -93,25 +156,21 @@
 
     .info-label {
       font-weight: 700;
-      color: #52606d;
+      color: var(--muted);
     }
 
     .info-phone {
-      color: #0f766e;
+      color: var(--accent);
       text-decoration: none;
       font-weight: 700;
-    }
-
-    .info-phone:hover {
-      text-decoration: underline;
     }
 
     .directions-button {
       display: inline-block;
       margin-top: 10px;
-      padding: 8px 12px;
+      padding: 9px 12px;
       border-radius: 6px;
-      background: #0f766e;
+      background: var(--accent);
       color: #ffffff;
       text-decoration: none;
       font-weight: 700;
@@ -119,14 +178,16 @@
     }
 
     .directions-button:hover {
-      background: #115e59;
+      background: var(--accent-dark);
     }
 
-    @media (max-width: 600px) {
-      .search-panel {
-        top: 12px;
-        left: 12px;
-        width: calc(100% - 48px);
+    @media (max-width: 700px) {
+      .locator-panel {
+        top: 10px;
+        left: 10px;
+        width: calc(100% - 20px);
+        max-width: none;
+        max-height: 48vh;
       }
     }
   </style>
@@ -136,75 +197,34 @@
   <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 </head>
 <body>
-  <div class="search-panel">
-    <div class="search-row">
-      <input
-        id="searchInput"
-        type="text"
-        placeholder="Szukaj sklepu, miasta lub adresu..."
-      />
-      <button id="clearSearch" type="button" aria-label="Wyczyść wyszukiwanie">×</button>
+  <div class="locator-panel">
+    <div class="locator-search">
+      <div class="search-row">
+        <input id="searchInput" type="text" placeholder="Wpisz miejscowość, sklep lub ulicę..." />
+        <button id="clearSearch" type="button" aria-label="Wyczyść">×</button>
+      </div>
+      <div id="resultsCount">Ładowanie sklepów...</div>
+      <div id="radiusNote" class="radius-note"></div>
     </div>
-    <div id="resultsCount">Ładowanie sklepów...</div>
+
+    <div id="storeList"></div>
   </div>
 
   <div id="map"></div>
 
   <script>
+    const NEARBY_RADIUS_KM = 30;
+
     const mapStyles = [
-      {
-        featureType: "administrative",
-        elementType: "geometry",
-        stylers: [{ visibility: "off" }]
-      },
-      {
-        featureType: "poi",
-        stylers: [{ visibility: "off" }]
-      },
-      {
-        featureType: "road",
-        elementType: "labels.icon",
-        stylers: [{ visibility: "off" }]
-      },
-      {
-        featureType: "transit",
-        stylers: [{ visibility: "off" }]
-      },
-      {
-        featureType: "water",
-        elementType: "geometry",
-        stylers: [{ color: "#c9e7e5" }]
-      },
-      {
-        featureType: "landscape",
-        elementType: "geometry",
-        stylers: [{ color: "#f3f6f2" }]
-      },
-      {
-        featureType: "road",
-        elementType: "geometry",
-        stylers: [{ color: "#ffffff" }]
-      },
-      {
-        featureType: "road.arterial",
-        elementType: "geometry",
-        stylers: [{ color: "#d9e4dd" }]
-      },
-      {
-        featureType: "road.highway",
-        elementType: "geometry",
-        stylers: [{ color: "#b9d3c7" }]
-      },
-      {
-        featureType: "road",
-        elementType: "labels.text.fill",
-        stylers: [{ color: "#64748b" }]
-      },
-      {
-        featureType: "administrative.locality",
-        elementType: "labels.text.fill",
-        stylers: [{ color: "#334155" }]
-      }
+      { featureType: "poi", stylers: [{ visibility: "off" }] },
+      { featureType: "transit", stylers: [{ visibility: "off" }] },
+      { featureType: "road", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+      { featureType: "landscape", elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
+      { featureType: "water", elementType: "geometry", stylers: [{ color: "#d7d7d7" }] },
+      { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
+      { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#d9d9d9" }] },
+      { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#707070" }] },
+      { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#222222" }] }
     ];
 
     const map = new google.maps.Map(document.getElementById("map"), {
@@ -223,8 +243,10 @@
     const searchInput = document.getElementById("searchInput");
     const clearSearch = document.getElementById("clearSearch");
     const resultsCount = document.getElementById("resultsCount");
+    const radiusNote = document.getElementById("radiusNote");
+    const storeList = document.getElementById("storeList");
 
-    const markers = [];
+    const stores = [];
     let clusterer = null;
     let mapFinished = false;
 
@@ -247,14 +269,12 @@
           const lat = parseCoordinate(row["szerokość geograficzna (latitude)"]);
           const lng = parseCoordinate(row["długość geograficzna (longitude)"]);
 
-          if (!name || !address || !city) {
-            return;
-          }
+          if (!name || !address || !city) return;
 
           const fullAddress = `${address}, ${city}`;
 
           if (!isNaN(lat) && !isNaN(lng)) {
-            createMarker({ lat, lng }, name, fullAddress, phone, city);
+            createStore({ lat, lng }, name, address, city, fullAddress, phone);
           } else {
             pendingGeocodes++;
 
@@ -263,21 +283,17 @@
 
               if (status === "OK" && results[0]) {
                 const location = results[0].geometry.location;
-                createMarker(location, name, fullAddress, phone, city);
+                createStore(location, name, address, city, fullAddress, phone);
               } else {
                 console.warn(`Nie znaleziono adresu: ${fullAddress}`);
               }
 
-              if (pendingGeocodes === 0) {
-                finishMap();
-              }
+              if (pendingGeocodes === 0) finishMap();
             });
           }
         });
 
-        if (pendingGeocodes === 0) {
-          finishMap();
-        }
+        if (pendingGeocodes === 0) finishMap();
       },
 
       error: function (error) {
@@ -287,12 +303,12 @@
     });
 
     searchInput.addEventListener("input", () => {
-      filterMarkers(searchInput.value);
+      filterStores(searchInput.value);
     });
 
     clearSearch.addEventListener("click", () => {
       searchInput.value = "";
-      filterMarkers("");
+      filterStores("");
       searchInput.focus();
     });
 
@@ -308,50 +324,165 @@
       );
     }
 
-    function createMarker(location, title, address, phone, city) {
+    function createStore(location, name, address, city, fullAddress, phone) {
       const marker = new google.maps.Marker({
         position: location,
-        title: title,
+        title: name,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
           scale: 9,
-          fillColor: "#0f766e",
+          fillColor: "#c9202f",
           fillOpacity: 1,
           strokeColor: "#ffffff",
           strokeWeight: 3
         }
       });
 
-      marker.searchText = normalizeText(`${title} ${address} ${city} ${phone || ""}`);
+      const store = {
+        name,
+        address,
+        city,
+        fullAddress,
+        phone,
+        marker,
+        searchText: normalizeText(`${name} ${address} ${city} ${phone || ""}`),
+        cityText: normalizeText(city)
+      };
 
-      marker.addListener("click", () => {
-        infoWindow.setContent(createInfoWindowContent(title, address, phone));
-        infoWindow.open(map, marker);
-      });
+      marker.addListener("click", () => openStore(store));
 
-      markers.push(marker);
+      stores.push(store);
     }
 
-    function createInfoWindowContent(title, address, phone) {
-      const encodedAddress = encodeURIComponent(address);
-      const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`;
+    function finishMap() {
+      if (mapFinished) return;
 
-      const phoneHtml = phone
+      mapFinished = true;
+
+      clusterer = new markerClusterer.MarkerClusterer({
+        map,
+        markers: stores.map((store) => store.marker),
+        renderer: createClusterRenderer()
+      });
+
+      renderStores(stores);
+      updateResultsCount(stores.length);
+      fitMapToStores(stores);
+    }
+
+    function filterStores(query) {
+      if (!mapFinished) return;
+
+      const normalizedQuery = normalizeText(query);
+
+      if (!normalizedQuery) {
+        radiusNote.textContent = "";
+        updateVisibleStores(stores, null);
+        return;
+      }
+
+      const exactCityStores = stores.filter((store) => store.cityText === normalizedQuery);
+      const partialCityStores = stores.filter((store) => store.cityText.includes(normalizedQuery));
+
+      if (exactCityStores.length > 0) {
+        const center = getStoresCenter(exactCityStores);
+        const nearbyStores = getStoresWithinRadius(center, NEARBY_RADIUS_KM);
+
+        nearbyStores.forEach((store) => {
+          store.distanceFromSearch = getDistanceKm(center, store.marker.getPosition());
+        });
+
+        nearbyStores.sort((a, b) => a.distanceFromSearch - b.distanceFromSearch);
+
+        radiusNote.textContent = `Pokazuję sklepy w promieniu ${NEARBY_RADIUS_KM} km od miejscowości: ${query}`;
+        updateVisibleStores(nearbyStores, center);
+        return;
+      }
+
+      if (partialCityStores.length > 0) {
+        radiusNote.textContent = "Doprecyzuj miejscowość, aby pokazać także sklepy z okolicy.";
+        updateVisibleStores(partialCityStores, null);
+        return;
+      }
+
+      const textMatches = stores.filter((store) => store.searchText.includes(normalizedQuery));
+      radiusNote.textContent = "";
+      updateVisibleStores(textMatches, null);
+    }
+
+    function updateVisibleStores(visibleStores, center) {
+      infoWindow.close();
+
+      clusterer.clearMarkers();
+      clusterer.addMarkers(visibleStores.map((store) => store.marker));
+
+      renderStores(visibleStores);
+      updateResultsCount(visibleStores.length);
+      fitMapToStores(visibleStores, center);
+    }
+
+    function renderStores(visibleStores) {
+      storeList.innerHTML = "";
+
+      if (visibleStores.length === 0) {
+        storeList.innerHTML = `
+          <div class="store-item">
+            <div class="store-name">Brak wyników</div>
+            <div class="store-address">Spróbuj wpisać inną miejscowość, nazwę sklepu albo ulicę.</div>
+          </div>
+        `;
+        return;
+      }
+
+      visibleStores.forEach((store) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "store-item";
+
+        const distanceHtml = typeof store.distanceFromSearch === "number"
+          ? `<div class="store-distance">${store.distanceFromSearch.toFixed(1)} km od szukanej miejscowości</div>`
+          : "";
+
+        item.innerHTML = `
+          <div class="store-name">${escapeHtml(store.name)}</div>
+          <div class="store-address">${escapeHtml(store.address)}, ${escapeHtml(store.city)}</div>
+          ${distanceHtml}
+        `;
+
+        item.addEventListener("click", () => {
+          openStore(store);
+          map.panTo(store.marker.getPosition());
+          map.setZoom(14);
+        });
+
+        storeList.appendChild(item);
+      });
+    }
+
+    function openStore(store) {
+      infoWindow.setContent(createInfoWindowContent(store));
+      infoWindow.open(map, store.marker);
+    }
+
+    function createInfoWindowContent(store) {
+      const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(store.fullAddress)}`;
+
+      const phoneHtml = store.phone
         ? `
           <div class="info-row">
             <span class="info-label">Telefon:</span>
-            <a class="info-phone" href="tel:${cleanPhoneNumber(phone)}">${escapeHtml(phone)}</a>
+            <a class="info-phone" href="tel:${cleanPhoneNumber(store.phone)}">${escapeHtml(store.phone)}</a>
           </div>
         `
         : "";
 
       return `
         <div class="info-window">
-          <div class="info-title">${escapeHtml(title)}</div>
+          <div class="info-title">${escapeHtml(store.name)}</div>
 
           <div class="info-row">
             <span class="info-label">Adres:</span>
-            ${escapeHtml(address)}
+            ${escapeHtml(store.fullAddress)}
           </div>
 
           ${phoneHtml}
@@ -363,65 +494,30 @@
       `;
     }
 
-    function finishMap() {
-      if (mapFinished) {
-        return;
-      }
-
-      mapFinished = true;
-
-      clusterer = new markerClusterer.MarkerClusterer({
-        map: map,
-        markers: markers,
-        renderer: createClusterRenderer()
-      });
-
-      updateResultsCount(markers.length);
-      fitMapToMarkers(markers);
-
-      google.maps.event.addListenerOnce(map, "bounds_changed", () => {
-        if (map.getZoom() > 12) {
-          map.setZoom(12);
-        }
-      });
-    }
-
-    function filterMarkers(query) {
-      if (!mapFinished) {
-        return;
-      }
-
-      const normalizedQuery = normalizeText(query);
-
-      const visibleMarkers = markers.filter((marker) => {
-        return !normalizedQuery || marker.searchText.includes(normalizedQuery);
-      });
-
-      infoWindow.close();
-
-      clusterer.clearMarkers();
-      clusterer.addMarkers(visibleMarkers);
-
-      updateResultsCount(visibleMarkers.length);
-      fitMapToMarkers(visibleMarkers);
-    }
-
-    function fitMapToMarkers(visibleMarkers) {
-      if (visibleMarkers.length === 0) {
-        return;
-      }
+    function fitMapToStores(visibleStores, center) {
+      if (visibleStores.length === 0) return;
 
       const bounds = new google.maps.LatLngBounds();
 
-      visibleMarkers.forEach((marker) => {
-        bounds.extend(marker.getPosition());
+      visibleStores.forEach((store) => {
+        bounds.extend(store.marker.getPosition());
       });
+
+      if (center) {
+        bounds.extend(center);
+      }
 
       map.fitBounds(bounds);
 
-      if (visibleMarkers.length === 1) {
+      if (visibleStores.length === 1) {
         map.setZoom(14);
       }
+
+      google.maps.event.addListenerOnce(map, "bounds_changed", () => {
+        if (map.getZoom() > 12 && visibleStores.length > 1) {
+          map.setZoom(12);
+        }
+      });
     }
 
     function updateResultsCount(count) {
@@ -430,6 +526,49 @@
       } else {
         resultsCount.textContent = `Znaleziono ${count} sklepów`;
       }
+    }
+
+    function getStoresCenter(centerStores) {
+      const total = centerStores.reduce((sum, store) => {
+        const position = store.marker.getPosition();
+
+        return {
+          lat: sum.lat + position.lat(),
+          lng: sum.lng + position.lng()
+        };
+      }, { lat: 0, lng: 0 });
+
+      return new google.maps.LatLng(
+        total.lat / centerStores.length,
+        total.lng / centerStores.length
+      );
+    }
+
+    function getStoresWithinRadius(center, radiusKm) {
+      return stores.filter((store) => {
+        return getDistanceKm(center, store.marker.getPosition()) <= radiusKm;
+      });
+    }
+
+    function getDistanceKm(pointA, pointB) {
+      const earthRadiusKm = 6371;
+      const lat1 = toRadians(pointA.lat());
+      const lat2 = toRadians(pointB.lat());
+      const deltaLat = toRadians(pointB.lat() - pointA.lat());
+      const deltaLng = toRadians(pointB.lng() - pointA.lng());
+
+      const a =
+        Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+        Math.cos(lat1) * Math.cos(lat2) *
+        Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      return earthRadiusKm * c;
+    }
+
+    function toRadians(value) {
+      return value * Math.PI / 180;
     }
 
     function createClusterRenderer() {
@@ -445,11 +584,11 @@
             },
             icon: {
               path: google.maps.SymbolPath.CIRCLE,
-              scale: Math.min(18 + count / 4, 32),
-              fillColor: "#134e4a",
-              fillOpacity: 0.92,
-              strokeColor: "#ffffff",
-              strokeWeight: 3
+              scale: Math.min(18 + count / 4, 34),
+              fillColor: "#1f1f1f",
+              fillOpacity: 0.94,
+              strokeColor: "#c9202f",
+              strokeWeight: 4
             },
             zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count
           });
