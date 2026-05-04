@@ -6,26 +6,150 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
+    }
+
     #map {
       width: 100%;
       height: 100vh;
+    }
+
+    .info-window {
+      max-width: 260px;
+      padding: 4px;
+      color: #1f2933;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .info-title {
+      margin-bottom: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #173f35;
+    }
+
+    .info-row {
+      margin-bottom: 6px;
+    }
+
+    .info-label {
+      font-weight: 700;
+      color: #52606d;
+    }
+
+    .info-phone {
+      color: #0f766e;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .info-phone:hover {
+      text-decoration: underline;
+    }
+
+    .directions-button {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      background: #0f766e;
+      color: #ffffff;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .directions-button:hover {
+      background: #115e59;
     }
   </style>
 
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDyfQemGqfFMURA4AkQF1LtRCVDK2OGd_Y"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 </head>
 <body>
   <div id="map"></div>
 
   <script>
+    const mapStyles = [
+      {
+        featureType: "administrative",
+        elementType: "geometry",
+        stylers: [{ visibility: "off" }]
+      },
+      {
+        featureType: "poi",
+        stylers: [{ visibility: "off" }]
+      },
+      {
+        featureType: "road",
+        elementType: "labels.icon",
+        stylers: [{ visibility: "off" }]
+      },
+      {
+        featureType: "transit",
+        stylers: [{ visibility: "off" }]
+      },
+      {
+        featureType: "water",
+        elementType: "geometry",
+        stylers: [{ color: "#c9e7e5" }]
+      },
+      {
+        featureType: "landscape",
+        elementType: "geometry",
+        stylers: [{ color: "#f3f6f2" }]
+      },
+      {
+        featureType: "road",
+        elementType: "geometry",
+        stylers: [{ color: "#ffffff" }]
+      },
+      {
+        featureType: "road.arterial",
+        elementType: "geometry",
+        stylers: [{ color: "#d9e4dd" }]
+      },
+      {
+        featureType: "road.highway",
+        elementType: "geometry",
+        stylers: [{ color: "#b9d3c7" }]
+      },
+      {
+        featureType: "road",
+        elementType: "labels.text.fill",
+        stylers: [{ color: "#64748b" }]
+      },
+      {
+        featureType: "administrative.locality",
+        elementType: "labels.text.fill",
+        stylers: [{ color: "#334155" }]
+      }
+    ];
+
     const map = new google.maps.Map(document.getElementById("map"), {
       center: { lat: 50.0, lng: 21.8 },
       zoom: 8,
+      styles: mapStyles,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: true
     });
 
     const csvUrl = "https://raw.githubusercontent.com/mateuszslota1/mapa-sklepow/refs/heads/main/Lokalizacja_sklepow.csv";
+
     const geocoder = new google.maps.Geocoder();
+    const bounds = new google.maps.LatLngBounds();
+    const markers = [];
+    const infoWindow = new google.maps.InfoWindow();
+    let mapFinished = false;
 
     Papa.parse(csvUrl, {
       download: true,
@@ -35,6 +159,7 @@
 
       complete: function (results) {
         const data = results.data;
+        let pendingGeocodes = 0;
 
         data.forEach((row) => {
           const name = row["Nazwa"]?.trim();
@@ -52,18 +177,30 @@
           const fullAddress = `${address}, ${city}`;
 
           if (!isNaN(lat) && !isNaN(lng)) {
-            addMarker({ lat, lng }, name, fullAddress, phone);
+            createMarker({ lat, lng }, name, fullAddress, phone);
           } else {
+            pendingGeocodes++;
+
             geocoder.geocode({ address: fullAddress }, (results, status) => {
+              pendingGeocodes--;
+
               if (status === "OK" && results[0]) {
                 const location = results[0].geometry.location;
-                addMarker(location, name, fullAddress, phone);
+                createMarker(location, name, fullAddress, phone);
               } else {
                 console.warn(`Nie znaleziono adresu: ${fullAddress}`);
+              }
+
+              if (pendingGeocodes === 0) {
+                finishMap();
               }
             });
           }
         });
+
+        if (pendingGeocodes === 0) {
+          finishMap();
+        }
       },
 
       error: function (error) {
@@ -83,6 +220,110 @@
       );
     }
 
+    function createMarker(location, title, address, phone) {
+      const marker = new google.maps.Marker({
+        position: location,
+        map: map,
+        title: title,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 9,
+          fillColor: "#0f766e",
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 3
+        }
+      });
+
+      marker.addListener("click", () => {
+        infoWindow.setContent(createInfoWindowContent(title, address, phone));
+        infoWindow.open(map, marker);
+      });
+
+      markers.push(marker);
+      bounds.extend(marker.getPosition());
+    }
+
+    function createInfoWindowContent(title, address, phone) {
+      const encodedAddress = encodeURIComponent(address);
+      const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`;
+
+      const phoneHtml = phone
+        ? `
+          <div class="info-row">
+            <span class="info-label">Telefon:</span>
+            <a class="info-phone" href="tel:${cleanPhoneNumber(phone)}">${escapeHtml(phone)}</a>
+          </div>
+        `
+        : "";
+
+      return `
+        <div class="info-window">
+          <div class="info-title">${escapeHtml(title)}</div>
+
+          <div class="info-row">
+            <span class="info-label">Adres:</span>
+            ${escapeHtml(address)}
+          </div>
+
+          ${phoneHtml}
+
+          <a class="directions-button" href="${directionsUrl}" target="_blank" rel="noopener">
+            Wyznacz trasę
+          </a>
+        </div>
+      `;
+    }
+
+    function finishMap() {
+      if (mapFinished || markers.length === 0) {
+        return;
+      }
+
+      mapFinished = true;
+
+      map.fitBounds(bounds);
+
+      const clusterRenderer = {
+        render: ({ count, position }) => {
+          return new google.maps.Marker({
+            position,
+            label: {
+              text: String(count),
+              color: "#ffffff",
+              fontSize: "13px",
+              fontWeight: "700"
+            },
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: Math.min(18 + count / 4, 32),
+              fillColor: "#134e4a",
+              fillOpacity: 0.92,
+              strokeColor: "#ffffff",
+              strokeWeight: 3
+            },
+            zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count
+          });
+        }
+      };
+
+      new markerClusterer.MarkerClusterer({
+        map: map,
+        markers: markers,
+        renderer: clusterRenderer
+      });
+
+      google.maps.event.addListenerOnce(map, "bounds_changed", () => {
+        if (map.getZoom() > 12) {
+          map.setZoom(12);
+        }
+      });
+    }
+
+    function cleanPhoneNumber(phone) {
+      return String(phone).replace(/[^\d+]/g, "");
+    }
+
     function escapeHtml(value) {
       return String(value || "")
         .replace(/&/g, "&amp;")
@@ -90,30 +331,6 @@
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
-    }
-
-    function addMarker(location, title, address, phone) {
-      const marker = new google.maps.Marker({
-        position: location,
-        map: map,
-        title: title
-      });
-
-      const phoneHtml = phone
-        ? `<br>Tel: ${escapeHtml(phone)}`
-        : "";
-
-      const infowindow = new google.maps.InfoWindow({
-        content: `
-          <strong>${escapeHtml(title)}</strong><br>
-          ${escapeHtml(address)}
-          ${phoneHtml}
-        `
-      });
-
-      marker.addListener("click", () => {
-        infowindow.open(map, marker);
-      });
     }
   </script>
 </body>
