@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -21,8 +20,8 @@
 
   <script>
     const map = new google.maps.Map(document.getElementById("map"), {
-      center: { lat: 52.237, lng: 21.017 },
-      zoom: 6,
+      center: { lat: 50.0, lng: 21.8 },
+      zoom: 8,
     });
 
     const csvUrl = "https://raw.githubusercontent.com/mateuszslota1/mapa-sklepow/refs/heads/main/Lokalizacja_sklepow.csv";
@@ -31,42 +30,85 @@
     Papa.parse(csvUrl, {
       download: true,
       header: true,
+      delimiter: ";",
+      skipEmptyLines: true,
+
       complete: function (results) {
         const data = results.data;
 
         data.forEach((row) => {
-          const name = row["Nazwa"];
-          const address = row["Adres"];
-          const city = row["Miasto"];
-          const lat = parseFloat(row["Lat"]);
-          const lng = parseFloat(row["Lng"]);
+          const name = row["Nazwa"]?.trim();
+          const address = row["Adres"]?.trim();
+          const city = row["Miasto"]?.trim();
+          const phone = row['Telefon kontaktowy (jeśli mamy; jeśli nie mamy to puste)']?.trim();
+
+          const lat = parseCoordinate(row["szerokość geograficzna (latitude)"]);
+          const lng = parseCoordinate(row["długość geograficzna (longitude)"]);
+
+          if (!name || !address || !city) {
+            return;
+          }
+
+          const fullAddress = `${address}, ${city}`;
 
           if (!isNaN(lat) && !isNaN(lng)) {
-            addMarker({ lat, lng }, name, `${address}, ${city}`);
+            addMarker({ lat, lng }, name, fullAddress, phone);
           } else {
-            const fullAddress = `${address}, ${city}`;
             geocoder.geocode({ address: fullAddress }, (results, status) => {
               if (status === "OK" && results[0]) {
                 const location = results[0].geometry.location;
-                addMarker(location, name, fullAddress);
+                addMarker(location, name, fullAddress, phone);
               } else {
                 console.warn(`Nie znaleziono adresu: ${fullAddress}`);
               }
             });
           }
         });
+      },
+
+      error: function (error) {
+        console.error("Błąd wczytywania CSV:", error);
       }
     });
 
-    function addMarker(location, title, address) {
+    function parseCoordinate(value) {
+      if (!value) return NaN;
+
+      return parseFloat(
+        String(value)
+          .replace(/"/g, "")
+          .replace(/;/g, "")
+          .replace(",", ".")
+          .trim()
+      );
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function addMarker(location, title, address, phone) {
       const marker = new google.maps.Marker({
         position: location,
         map: map,
         title: title
       });
 
+      const phoneHtml = phone
+        ? `<br>Tel: ${escapeHtml(phone)}`
+        : "";
+
       const infowindow = new google.maps.InfoWindow({
-        content: `<strong>${title}</strong><br>${address}`
+        content: `
+          <strong>${escapeHtml(title)}</strong><br>
+          ${escapeHtml(address)}
+          ${phoneHtml}
+        `
       });
 
       marker.addListener("click", () => {
