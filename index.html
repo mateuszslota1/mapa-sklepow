@@ -19,6 +19,59 @@
       height: 100vh;
     }
 
+    .search-panel {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 10;
+      width: 320px;
+      max-width: calc(100% - 32px);
+      padding: 12px;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+    }
+
+    .search-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    #searchInput {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    #searchInput:focus {
+      border-color: #0f766e;
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+    }
+
+    #clearSearch {
+      min-width: 40px;
+      border: 0;
+      border-radius: 6px;
+      background: #e2e8f0;
+      color: #334155;
+      font-size: 22px;
+      cursor: pointer;
+    }
+
+    #clearSearch:hover {
+      background: #cbd5e1;
+    }
+
+    #resultsCount {
+      margin-top: 8px;
+      color: #475569;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
     .info-window {
       max-width: 260px;
       padding: 4px;
@@ -68,6 +121,14 @@
     .directions-button:hover {
       background: #115e59;
     }
+
+    @media (max-width: 600px) {
+      .search-panel {
+        top: 12px;
+        left: 12px;
+        width: calc(100% - 48px);
+      }
+    }
   </style>
 
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDyfQemGqfFMURA4AkQF1LtRCVDK2OGd_Y"></script>
@@ -75,6 +136,18 @@
   <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 </head>
 <body>
+  <div class="search-panel">
+    <div class="search-row">
+      <input
+        id="searchInput"
+        type="text"
+        placeholder="Szukaj sklepu, miasta lub adresu..."
+      />
+      <button id="clearSearch" type="button" aria-label="Wyczyść wyszukiwanie">×</button>
+    </div>
+    <div id="resultsCount">Ładowanie sklepów...</div>
+  </div>
+
   <div id="map"></div>
 
   <script>
@@ -146,9 +219,13 @@
     const csvUrl = "https://raw.githubusercontent.com/mateuszslota1/mapa-sklepow/refs/heads/main/Lokalizacja_sklepow.csv";
 
     const geocoder = new google.maps.Geocoder();
-    const bounds = new google.maps.LatLngBounds();
-    const markers = [];
     const infoWindow = new google.maps.InfoWindow();
+    const searchInput = document.getElementById("searchInput");
+    const clearSearch = document.getElementById("clearSearch");
+    const resultsCount = document.getElementById("resultsCount");
+
+    const markers = [];
+    let clusterer = null;
     let mapFinished = false;
 
     Papa.parse(csvUrl, {
@@ -177,7 +254,7 @@
           const fullAddress = `${address}, ${city}`;
 
           if (!isNaN(lat) && !isNaN(lng)) {
-            createMarker({ lat, lng }, name, fullAddress, phone);
+            createMarker({ lat, lng }, name, fullAddress, phone, city);
           } else {
             pendingGeocodes++;
 
@@ -186,7 +263,7 @@
 
               if (status === "OK" && results[0]) {
                 const location = results[0].geometry.location;
-                createMarker(location, name, fullAddress, phone);
+                createMarker(location, name, fullAddress, phone, city);
               } else {
                 console.warn(`Nie znaleziono adresu: ${fullAddress}`);
               }
@@ -205,7 +282,18 @@
 
       error: function (error) {
         console.error("Błąd wczytywania CSV:", error);
+        resultsCount.textContent = "Nie udało się wczytać sklepów.";
       }
+    });
+
+    searchInput.addEventListener("input", () => {
+      filterMarkers(searchInput.value);
+    });
+
+    clearSearch.addEventListener("click", () => {
+      searchInput.value = "";
+      filterMarkers("");
+      searchInput.focus();
     });
 
     function parseCoordinate(value) {
@@ -220,10 +308,9 @@
       );
     }
 
-    function createMarker(location, title, address, phone) {
+    function createMarker(location, title, address, phone, city) {
       const marker = new google.maps.Marker({
         position: location,
-        map: map,
         title: title,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
@@ -235,13 +322,14 @@
         }
       });
 
+      marker.searchText = normalizeText(`${title} ${address} ${city} ${phone || ""}`);
+
       marker.addListener("click", () => {
         infoWindow.setContent(createInfoWindowContent(title, address, phone));
         infoWindow.open(map, marker);
       });
 
       markers.push(marker);
-      bounds.extend(marker.getPosition());
     }
 
     function createInfoWindowContent(title, address, phone) {
@@ -276,15 +364,76 @@
     }
 
     function finishMap() {
-      if (mapFinished || markers.length === 0) {
+      if (mapFinished) {
         return;
       }
 
       mapFinished = true;
 
+      clusterer = new markerClusterer.MarkerClusterer({
+        map: map,
+        markers: markers,
+        renderer: createClusterRenderer()
+      });
+
+      updateResultsCount(markers.length);
+      fitMapToMarkers(markers);
+
+      google.maps.event.addListenerOnce(map, "bounds_changed", () => {
+        if (map.getZoom() > 12) {
+          map.setZoom(12);
+        }
+      });
+    }
+
+    function filterMarkers(query) {
+      if (!mapFinished) {
+        return;
+      }
+
+      const normalizedQuery = normalizeText(query);
+
+      const visibleMarkers = markers.filter((marker) => {
+        return !normalizedQuery || marker.searchText.includes(normalizedQuery);
+      });
+
+      infoWindow.close();
+
+      clusterer.clearMarkers();
+      clusterer.addMarkers(visibleMarkers);
+
+      updateResultsCount(visibleMarkers.length);
+      fitMapToMarkers(visibleMarkers);
+    }
+
+    function fitMapToMarkers(visibleMarkers) {
+      if (visibleMarkers.length === 0) {
+        return;
+      }
+
+      const bounds = new google.maps.LatLngBounds();
+
+      visibleMarkers.forEach((marker) => {
+        bounds.extend(marker.getPosition());
+      });
+
       map.fitBounds(bounds);
 
-      const clusterRenderer = {
+      if (visibleMarkers.length === 1) {
+        map.setZoom(14);
+      }
+    }
+
+    function updateResultsCount(count) {
+      if (count === 1) {
+        resultsCount.textContent = "Znaleziono 1 sklep";
+      } else {
+        resultsCount.textContent = `Znaleziono ${count} sklepów`;
+      }
+    }
+
+    function createClusterRenderer() {
+      return {
         render: ({ count, position }) => {
           return new google.maps.Marker({
             position,
@@ -306,18 +455,14 @@
           });
         }
       };
+    }
 
-      new markerClusterer.MarkerClusterer({
-        map: map,
-        markers: markers,
-        renderer: clusterRenderer
-      });
-
-      google.maps.event.addListenerOnce(map, "bounds_changed", () => {
-        if (map.getZoom() > 12) {
-          map.setZoom(12);
-        }
-      });
+    function normalizeText(value) {
+      return String(value || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
     }
 
     function cleanPhoneNumber(phone) {
